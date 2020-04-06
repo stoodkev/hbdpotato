@@ -15,7 +15,7 @@ const {
 const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
-router.get("/convert", (req, res) => {
+router.post("/convert", auth, (req, res) => {
   convert();
   res.sendStatus(200);
 });

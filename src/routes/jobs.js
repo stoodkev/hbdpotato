@@ -1,6 +1,7 @@
 const express = require("express");
 const router = new express.Router();
-const steem = require("steem");
+const hive = require("@hiveio/hive-js");
+hive.api.setOptions({url: "https://anyx.io/"});
 const {
   ACCOUNT,
   WIF,
@@ -14,7 +15,7 @@ const {
 const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
-router.post("/convert", auth, (req, res) => {
+router.get("/convert", (req, res) => {
   convert();
   res.sendStatus(200);
 });
@@ -80,7 +81,7 @@ const post = async () => {
     ]
   ];
   console.log(operations);
-  await steem.broadcast.sendAsync({operations, extensions: []}, [POSTING]);
+  await hive.broadcast.sendAsync({operations, extensions: []}, [POSTING]);
   for (let i = 1; i <= COMMENTS_PER_POST; i++) {
     await timeout(3000);
     operations = [
@@ -109,7 +110,7 @@ const post = async () => {
         }
       ]
     ];
-    await steem.broadcast.sendAsync({operations, extensions: []}, [POSTING]);
+    await hive.broadcast.sendAsync({operations, extensions: []}, [POSTING]);
   }
 };
 
@@ -118,17 +119,17 @@ const timeout = ms => {
 };
 
 const convert = async () => {
-  let account = await steem.api.getAccountsAsync([ACCOUNT]);
+  let account = await hive.api.getAccountsAsync([ACCOUNT]);
   const initialSBD = account[0].sbd_balance;
   const steemBalance = account[0].balance;
   if (parseFloat(steemBalance) !== 0) {
     const amountBuy = `${Math.min(parseFloat(steemBalance), MAX_BUY).toFixed(
       3
     )} STEEM`;
-    console.log(`Buying ${amountBuy} worth of SBD.`);
+    console.log(`Buying ${amountBuy} worth of HBD.`);
     const orderID = getID();
     const expiration = parseInt(new Date().getTime() / 1000 + 10);
-    const order = await steem.broadcast.limitOrderCreateAsync(
+    const order = await hive.broadcast.limitOrderCreateAsync(
       WIF,
       ACCOUNT,
       orderID,
@@ -138,19 +139,19 @@ const convert = async () => {
       expiration
     );
     await timeout(5000);
-    account = await steem.api.getAccountsAsync([ACCOUNT]);
+    account = await hive.api.getAccountsAsync([ACCOUNT]);
     console.log(
       `Bought ${parseFloat(account[0].sbd_balance) -
-        parseFloat(initialSBD)} SBD for ${amountBuy}.`
+        parseFloat(initialSBD)} HBD for ${amountBuy}.`
     );
-  } else console.log("No STEEM to buy SBD.");
+  } else console.log("No HIVE to buy HBD.");
   const sbd = account[0].sbd_balance;
   if (parseFloat(sbd) !== 0) {
-    const convert = await steem.broadcast.convertAsync(
+    const convert = await hive.broadcast.convertAsync(
       WIF,
       ACCOUNT,
       getID(),
-      sbd
+      sbd.replace("HBD", "SBD")
     );
     console.log(`Started conversion of ${sbd}.`);
   } else console.log("Nothing to convert!");

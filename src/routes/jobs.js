@@ -20,7 +20,7 @@ const {getPostBody, getTitle, tags} = require("../templates/post");
 const validators = [{
   ip: 'https://hbdpotato.fbslo.net/'
 }]
-const apiKey = '2446314912'
+const apiKey = process.env.API_KEY
 const useValidator = true
 
 router.post("/convert", auth, (req, res) => {

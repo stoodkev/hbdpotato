@@ -18,9 +18,9 @@ const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
 const validators = [{
-  ip: 'http://localhost:8080/'
+  ip: 'https://hbdpotato.fbslo.net/'
 }]
-const apiKey = 'key'
+const apiKey = '2446314912'
 const useValidator = true
 
 router.post("/convert", auth, (req, res) => {
@@ -129,11 +129,11 @@ const timeout = ms => {
 const convert = async () => {
   let account = await hive.api.getAccountsAsync([ACCOUNT]);
   const initialSBD = account[0].hbd_balance;
-  const steemBalance = account[0].balance;
+  const steemBalance = account[0].balance.split(" ")[0];
   if (parseFloat(steemBalance) !== 0) {
     const amountBuy = `${Math.min(parseFloat(steemBalance), MAX_BUY).toFixed(
       3
-    )} STEEM`;
+    )} HIVE`;
     console.log(`Buying ${amountBuy} worth of HBD.`);
     const orderID = getID();
     const expirationNum = parseInt(new Date().getTime() / 1000 + 10);
@@ -143,9 +143,9 @@ const convert = async () => {
       owner: ACCOUNT,
       requestId: orderID,
       amount_to_sell: amountBuy,
-      min_to_receive: "0.001 SBD",
+      min_to_receive: "0.001 HBD",
       fill_or_kill: true,
-      expiration: expirationNum
+      expirationNum: expirationNum
     })
     requestSignatures(order, account)
 
@@ -163,7 +163,7 @@ const convert = async () => {
       type: 'convert',
       owner: ACCOUNT,
       requestId: getID(),
-      amount: sbd.replace("HBD", "SBD")
+      amount: sbd
     })
     requestSignatures(convert, account)
 
@@ -174,6 +174,7 @@ const convert = async () => {
 const getID = () => Math.floor(Math.random() * 10000000);
 
 async function requestSignatures(transaction, account){
+  console.log(transaction)
   if (useValidator){
     let signatures = []
     for (i in validators){
@@ -190,7 +191,8 @@ async function requestSignatures(transaction, account){
     await timeout(5000);
     let threshold = Math.ceil(account[0].active.account_auths.length + account[0].active.key_auths.length * 0.75) //threshold at 75%
     if (signatures.length >= threshold){
-      transaction.signatures(...signatures)
+      transaction["signatures"] = signatures
+      console.log(transaction)
       hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
         if (err) console.log(err);
       });
@@ -221,14 +223,14 @@ async function prepareTransaction({type, owner, requestId, amount, amount_to_sel
   } else {
     operations = [['limit_order_create',
      {'owner': owner,
-      'requestid': requestId,
+      'orderid': requestId,
       'amount_to_sell': amount_to_sell,
       'min_to_receive': min_to_receive,
       'fill_or_kill': fill_or_kill,
-      'expiration': expirationNum
+      'expiration': expiration //expirationNum
     }]];
   }
-
+console.log(operations)
   let tx = {
     expiration,
     extensions,

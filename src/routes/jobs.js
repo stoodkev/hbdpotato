@@ -1,6 +1,8 @@
 const express = require("express");
 const router = new express.Router();
 const hive = require("@hiveio/hive-js");
+const dhive = require("@hiveio/dhive");
+const axios = require('axios').default;
 hive.api.setOptions({url: "https://anyx.io/"});
 const {
   ACCOUNT,
@@ -14,6 +16,11 @@ const {
 } = process.env;
 const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
+
+const validators = [{
+  ip: 'http://localhost:8080/'
+}]
+const apiKey = 'key'
 
 router.post("/convert", auth, (req, res) => {
   convert();
@@ -120,7 +127,7 @@ const timeout = ms => {
 
 const convert = async () => {
   let account = await hive.api.getAccountsAsync([ACCOUNT]);
-  const initialSBD = account[0].sbd_balance;
+  const initialSBD = account[0].hbd_balance;
   const steemBalance = account[0].balance;
   if (parseFloat(steemBalance) !== 0) {
     const amountBuy = `${Math.min(parseFloat(steemBalance), MAX_BUY).toFixed(
@@ -128,35 +135,107 @@ const convert = async () => {
     )} STEEM`;
     console.log(`Buying ${amountBuy} worth of HBD.`);
     const orderID = getID();
-    const expiration = parseInt(new Date().getTime() / 1000 + 10);
-    const order = await hive.broadcast.limitOrderCreateAsync(
-      WIF,
-      ACCOUNT,
-      orderID,
-      amountBuy,
-      "0.001 SBD",
-      true,
-      expiration
-    );
+    const expirationNum = parseInt(new Date().getTime() / 1000 + 10);
+
+    const order = await prepareTransaction({
+      type: 'order',
+      owner: ACCOUNT,
+      requestId: orderID,
+      amount_to_sell: amountBuy,
+      min_to_receive: "0.001 SBD",
+      fill_or_kill: true,
+      expiration: expirationNum
+    })
+    requestSignatures(order, account)
+
     await timeout(5000);
     account = await hive.api.getAccountsAsync([ACCOUNT]);
     console.log(
-      `Bought ${parseFloat(account[0].sbd_balance) -
+      `Bought ${parseFloat(account[0].hbd_balance) -
         parseFloat(initialSBD)} HBD for ${amountBuy}.`
     );
   } else console.log("No HIVE to buy HBD.");
-  const sbd = account[0].sbd_balance;
+  const sbd = account[0].hbd_balance;
   if (parseFloat(sbd) !== 0) {
-    const convert = await hive.broadcast.convertAsync(
-      WIF,
-      ACCOUNT,
-      getID(),
-      sbd.replace("HBD", "SBD")
-    );
+
+    const convert = await prepareTransaction({
+      type: 'convert',
+      owner: ACCOUNT,
+      requestId: getID(),
+      amount: sbd.replace("HBD", "SBD")
+    })
+    requestSignatures(convert, account)
+
     console.log(`Started conversion of ${sbd}.`);
   } else console.log("Nothing to convert!");
 };
 
 const getID = () => Math.floor(Math.random() * 10000000);
+
+async function requestSignatures(transaction, account){
+  if (useValidator == true){
+    let signatures = []
+    for (i in validators){
+      axios.post(validators[i].ip, {
+        apiKey: apiKey,
+        transaction: transaction
+      }).then((response) => {
+        let { error, signature } = response.data
+        if (!error){
+          signatures.push(signature)
+        }
+      })
+    }
+    await timeout(5000);
+    let threshold = Math.ceil(account[0].active.account_auths.length + account[0].active.key_auths.length * 0.75) //threshold at 75%
+    if (signatures.length >= threshold){
+      transaction.signatures(...signatures)
+      hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
+        if (err) console.log(err);
+      });
+    } else {
+      console.log(`Not enough signatures collected`)
+    }
+  } else {
+    await hive.broadcast.sendAsync({transaction, extensions: []}, [WIF]);
+  }
+}
+
+async function prepareTransaction({type, owner, requestId, amount, amount_to_sell, min_to_receive, fill_or_kill, expirationNum}){
+  let dhiveClient = new dhive.Client(['https://api.hive.blog', 'https://anyx.io', 'rpc.esteem.app', 'api.openhive.network'], {
+    chainId: 'beeab0de00000000000000000000000000000000000000000000000000000000',
+  })
+  let expireTime = 1000 * 3590;
+  let props = await dhiveClient.database.getDynamicGlobalProperties();
+  let ref_block_num = props.head_block_number & 0xFFFF;
+  let ref_block_prefix = Buffer.from(props.head_block_id, 'hex').readUInt32LE(4);
+  let expiration = new Date(Date.now() + expireTime).toISOString().slice(0, -5);
+  let extensions = [];
+  let operation;
+  if (type == 'convert'){
+    operations = [['convert',
+     {'owner': owner,
+      'requestid': requestId,
+      'amount': amount}]];
+  } else {
+    operations = [['limit_order_create',
+     {'owner': owner,
+      'requestid': requestId,
+      'amount_to_sell': amount_to_sell,
+      'min_to_receive': min_to_receive,
+      'fill_or_kill': fill_or_kill,
+      'expiration': expirationNum
+    }]];
+  }
+
+  let tx = {
+    expiration,
+    extensions,
+    operations,
+    ref_block_num,
+    ref_block_prefix
+  }
+  return tx;
+}
 
 module.exports = router;

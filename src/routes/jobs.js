@@ -21,6 +21,7 @@ const validators = [{
   ip: 'http://localhost:8080/'
 }]
 const apiKey = 'key'
+const useValidator = true
 
 router.post("/convert", auth, (req, res) => {
   convert();
@@ -173,7 +174,7 @@ const convert = async () => {
 const getID = () => Math.floor(Math.random() * 10000000);
 
 async function requestSignatures(transaction, account){
-  if (useValidator == true){
+  if (useValidator){
     let signatures = []
     for (i in validators){
       axios.post(validators[i].ip, {

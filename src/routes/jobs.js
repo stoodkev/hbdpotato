@@ -174,7 +174,6 @@ const convert = async () => {
 const getID = () => Math.floor(Math.random() * 10000000);
 
 async function requestSignatures(transaction, account){
-  console.log(transaction)
   if (useValidator){
     let signatures = []
     for (i in validators){
@@ -192,7 +191,6 @@ async function requestSignatures(transaction, account){
     let threshold = Math.ceil(account[0].active.account_auths.length + account[0].active.key_auths.length * 0.75) //threshold at 75%
     if (signatures.length >= threshold){
       transaction["signatures"] = signatures
-      console.log(transaction)
       hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
         if (err) console.log(err);
       });
@@ -230,7 +228,7 @@ async function prepareTransaction({type, owner, requestId, amount, amount_to_sel
       'expiration': expiration //expirationNum
     }]];
   }
-console.log(operations)
+
   let tx = {
     expiration,
     extensions,

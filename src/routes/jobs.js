@@ -18,7 +18,11 @@ const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
 const validators = [{
-  ip: 'https://hbdpotato.fbslo.net/'
+  ip: 'http://localhost:8080'
+},{
+  ip: 'http://localhost:8081'
+}, {
+  ip: 'http://localhost:8082'
 }]
 const apiKey = process.env.API_KEY
 const useValidator = true
@@ -190,8 +194,9 @@ async function requestSignatures(transaction, account){
     await timeout(5000);
     let threshold = Math.ceil(account[0].active.account_auths.length + account[0].active.key_auths.length * 0.75) //threshold at 75%
     if (signatures.length >= threshold){
-      siggnatures.slice(0, threshold) //remove unnecessary signatures 
+      signatures = signatures.slice(0, threshold - 1) //remove unnecessary signatures
       transaction["signatures"] = signatures
+      console.log(signatures)
       hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
         if (err) console.log(err);
       });

@@ -18,11 +18,7 @@ const auth = require("../middlewares/auth");
 const {getPostBody, getTitle, tags} = require("../templates/post");
 
 const validators = [{
-  ip: 'http://localhost:8080'
-},{
-  ip: 'http://localhost:8081'
-}, {
-  ip: 'http://localhost:8082'
+  ip: 'https://hbdpotato.fbslo.net'
 }]
 const apiKey = process.env.API_KEY
 const useValidator = true

@@ -188,9 +188,11 @@ async function requestSignatures(transaction, account){
       })
     }
     await timeout(5000);
-    let threshold = Math.ceil(account[0].active.account_auths.length + account[0].active.key_auths.length * 0.75) //threshold at 75%
-    if (signatures.length >= threshold){
-      signatures = signatures.slice(0, threshold - 1) //remove unnecessary signatures
+    let threshold = account[0].active.weight_threshold
+    let requiredSignatures = threshold / account[0].active.account_auths[0][1]
+    console.log(requiredSignatures)
+    if (signatures.length >= requiredSignatures){
+      signatures = signatures.slice(0, requiredSignatures) //remove unnecessary signatures
       transaction["signatures"] = signatures
       hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
         if (err) console.log(err);

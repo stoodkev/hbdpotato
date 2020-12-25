@@ -14,7 +14,9 @@
   "author": "stoodkev",
   "license": "ISC",
   "dependencies": {
+    "@hiveio/dhive": "^0.14.12",
     "@hiveio/hive-js": "0.0.1",
+    "axios": "^0.21.1",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",

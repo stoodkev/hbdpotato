@@ -192,7 +192,6 @@ async function requestSignatures(transaction, account){
     if (signatures.length >= threshold){
       signatures = signatures.slice(0, threshold - 1) //remove unnecessary signatures
       transaction["signatures"] = signatures
-      console.log(signatures)
       hive.api.broadcastTransactionSynchronous(transaction, function(err, result) {
         if (err) console.log(err);
       });
